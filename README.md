@@ -50,11 +50,14 @@ python main.py test --mode manual
 # Train with default settings
 python main.py train --episodes 100
 
-# Train with custom save path and visualization
+# Train your agent with custom save path and visualization
 python main.py train --episodes 100 --save-path my_agent.pth --render
 
-# Evaluate trained agent
+# Evaluate your agent
 python main.py eval --load-path my_agent.pth --episodes 10 --render
+
+# Evaluate sample agent
+python main.py eval --load-path agent.pth --episodes 10 --render
 ```
 
 ## Implementing Your Own Agent
