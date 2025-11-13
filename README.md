@@ -1,20 +1,24 @@
-# Reinforcement Learning Gym Environment for a Pattern Matching Game in Conway's "Game of Life"
+# Reinforcement Learning Gym Environment for Pattern Matching in Conway's Game of Life
 
-A Gymnasium-compatible environment for training RL agents to create action sequences that lead to constructing a target pattern in a cellular environment that updates according to Conway's "Game of Life".
+A Gymnasium-compatible environment for training RL agents to construct target patterns in a cellular automaton that evolves according to Conway's Game of Life rules.
 
-## Game Overview - Pattern Matching in Conway's "Game of Life"
-• Goal: Match Target Pattern at step 10  
-• Actions (Keyboard Shortcuts for Manual Play):  
+![Screenshot of the pattern matching game](./screenshot_GoL_pattern_matching_game.png)
 
-- Arrow Keys: MOVE 2x2 write window Up, Down, Left, or Right  
-- Space Bar: PASS  
-- Hex Keys(0-9 & A-F): WRITE a 2×2 pattern 
+## Game Overview
 
-• Update Rule: An action (i.e. move, pass, or write) is always preceded by a "Game of Life" update step.   
+**Objective**: Match a target pattern after exactly 10 timesteps of Game of Life evolution and agent actions.
 
-![](./screenshot_GoL_pattern_matching_game.png)
+**Core Mechanics**:
+- Each turn: Game of Life update → Agent action 
+- Agent controls a 2×2 "write head" that can move around the grid and write patterns
+- Final reward based on how well the resulting grid matches the target pattern
 
-## Python UV Environment Installation
+**Actions** (Manual play keyboard shortcuts):
+- **Arrow Keys**: Move 2×2 write head (Up/Down/Left/Right)
+- **Space Bar**: Pass (do nothing)
+- **0-9, A-F**: Write one of 16 possible 2×2 patterns (hex encoding)
+
+## Installation
 
 ```bash
 uv pip install .
@@ -22,149 +26,151 @@ uv pip install .
 
 ## Quick Start
 
-### 1. Test with random policy
+### Verify Installation
 ```bash
-python test_env.py --mode random --render
+uv run main.py benchmark
 ```
 
-### 2. Test with greedy heuristic
+### Test Built-in Policies
+
 ```bash
-uv run test_env.py --mode greedy --render
+# Random policy (baseline)
+python main.py test --mode random --episodes 3 --render
+
+# Greedy policy (smarter baseline)
+python main.py test --mode greedy --episodes 5 --render
+
+# Manual control (play yourself!)
+python main.py test --mode manual
 ```
 
-### 3. Manual game play!
+### Train and Evaluate an Agent
+
 ```bash
-uv run test_env.py --mode manual
+# Train with default settings
+python main.py train --episodes 100
+
+# Train with custom save path and visualization
+python main.py train --episodes 100 --save-path my_agent.pth --render
+
+# Evaluate trained agent
+python main.py eval --load-path my_agent.pth --episodes 10 --render
 ```
 
-### 4. Test a saved agent
-First, run the RL integration example to save the model:
-```bash
-uv run integrated_RL_example.py
-```
-```
-uv run test_saved_agent.py --episodes 5
-```
+## Implementing Your Own Agent
 
-## Using the Environment in Your RL Code
+To use your own RL algorithm, replace the `SimpleAgent` class in `main.py` with your implementation. Required interface:
 
 ```python
-import gymnasium as gym
-import rl_GoL_env_gym  # Registers "GoL-2x2-v0"
-
-# Create environment
-env = gym.make("GoL-2x2-v0", grid_size=12, max_steps=10)
-
-# Training loop
-obs, info = env.reset()
-target = info['target']  # The pattern to match
-
-for episode in range(num_episodes):
-    obs, info = env.reset()
-    terminated = False
-    truncated = False
+class YourAgent:
+    def __init__(self, action_space):
+        # Initialize your model
+        pass
     
-    while not (terminated or truncated):
-        # Your agent selects action (0-20)
-        # obs is now a dict with 'grid', 'head_mask', and 'remaining_steps'
-        action = agent.select_action(obs)
-        
-        # Environment step
-        obs, reward, terminated, truncated, info = env.step(action)
-        
-        # reward is 0.0 until step 10, then it's the match percentage
-        if terminated:
-            print(f"Match accuracy: {info['accuracy']:.2%}")
-
-env.close()
+    def select_action(self, obs: dict) -> int:
+        # Return action index (0-20)
+        pass
+    
+    def save(self, path: str):
+        # Save model weights
+        pass
+    
+    def load(self, path: str):
+        # Load model weights
+        pass
 ```
 
-## Evolutionary Algorithms (alternative exploration)
-Alternatively, to play the game in the browser and experiment with Evolutionary Algorithms for mutating action sequences to find a good solution, check out https://evolutionary-ca-webgpu.onrender.com/
+The training and evaluation infrastructure handles everything else (environment setup, episode loops, rendering, metrics).
 
-## Environment Details
+## Environment Specification
 
 ### Observation Space
-- **Type**: `Dict`
-- **'grid' Shape**: `(12, 12)` with dtype `int8`. Current Game of Life grid (0=dead, 1=alive).
-- **'head_mask' Shape**: `(12, 12)` with dtype `int8`. Write head position mask (1 for the 2×2 write area).
-- **'remaining_steps' Shape**: `(1,)` with dtype `int32`. Steps remaining in the episode.
 
----
+**Type**: `Dict` with the following keys:
+
+| Key | Shape | Type | Description |
+|-----|-------|------|-------------|
+| `grid` | `(12, 12)` | `int8` | Current Game of Life grid (0=dead, 1=alive) |
+| `target` | `(12, 12)` | `int8` | Target pattern to match (0=dead, 1=alive) |
+| `head_mask` | `(12, 12)` | `int8` | Write head position (1 marks the 2×2 area) |
+| `remaining_steps` | `(1,)` | `int32` | Steps remaining in episode |
 
 ### Action Space
-- **Type**: `Discrete(21)`
-- Actions:
-  - `0`: Move head up
-  - `1`: Move head down
-  - `2`: Move head left
-  - `3`: Move head right
-  - `4`: Pass (do nothing)
-  - `5-20`: Write patterns 0x0 to 0xF as 2×2 grids
 
-Pattern encoding (4 bits → 2×2 grid):
+**Type**: `Discrete(21)`
+
+| Action | Description |
+|--------|-------------|
+| 0 | Move head up |
+| 1 | Move head down |
+| 2 | Move head left |
+| 3 | Move head right |
+| 4 | Pass (do nothing) |
+| 5-20 | Write pattern 0x0 to 0xF |
+
+**Pattern Encoding**: 4-bit patterns map to 2×2 grids:
 ```
-bit 0 = top-left
-bit 1 = top-right
-bit 2 = bottom-left
-bit 3 = bottom-right
+bit 0 = top-left    bit 1 = top-right
+bit 2 = bottom-left bit 3 = bottom-right
+
+Example: 0x9 = 0b1001 = ■ □
+                        □ ■
 ```
 
 ### Reward Structure
-- **Steps 0-9**: `reward = 0.0`
-- **Step 10 (terminal)**: `reward = matching_cells / total_cells`
-  - Range: [0.0, 1.0]
-  - 1.0 = perfect match
 
-### Episode Flow
-1. Environment resets with empty grid and random target pattern
-2. Each step:
-   - Game of Life update is applied **first**
-   - Then the agent's action is executed
-3. Episode terminates after 10 steps
-4. Final reward based on match percentage
+- **Steps 0-9**: `reward = 0.0` (sparse reward)
+- **Step 10** (terminal): `reward = matching_cells / total_cells`
+  - Range: `[0.0, 1.0]`
+  - `1.0` = perfect match
 
-## Example RL Training Integration
+### Episode Dynamics
 
-### RL Agent Integration (Example + Command Line Tool) 
+1. **Reset**: Grid initialized to all dead cells; random target pattern loaded
+2. **Each step**:
+   - Game of Life update applied to grid
+   - Agent action executed
+3. **Termination**: After 10 steps, final reward computed
 
-The `integrated_RL_example.py` file demonstrates the complete workflow for an RL agent: saving a policy (after "training") and then loading it back for testing.
+## Generating Achievable Target Patterns
 
-### To train, save, load, and test a sample RL model
-
-### A. Save the default agent
-```
-
-python integrated_RL_example.py train_save --episodes 3
-```
-### B. Load the default agent and test
-```
-python integrated_RL_example.py test_load --episodes 2 --render
-```
-
-### To save the simulated training to a file named new_experiment.pth:
-```
-uv run integrated_RL_example.py train_save --episodes 10 --load-file new_experiment.pth
-```
-
-### To load an agent from a file named my_custom_agent.pth and test it:
-```
-uv run integrated_RL_example.py test_load --load-file my_custom_agent.pth --render
-```
-
-## Utility: Generate Achievable Target Patterns to Sample
-
-Instead of using random target patterns, we can generate patterns that are actually achievable within N steps:
+By default, the environment samples from random patterns. To generate patterns that are provably achievable within N steps:
 
 ```bash
-uv run python generate_target_patterns.py --num-steps 6
+python generate_target_patterns.py --num-steps 6
 ```
 
-## Files
+This creates `target_patterns.json`, which the environment uses for sampling targets.
 
-- `rl_GoL_env_gym.py` - Main Gymnasium environment
-- `test_env.py` - Testing scripts
-- `generate_target_patterns.py` - Utility to create achievable target patterns
-- `target_patterns.json` - Output file from generate_target_patterns.py that is sampled for training and testing
-- `integrated_RL_example.py` - Shows you how to integrate an RL agent (and save and load a trained agent)
-- `simple_agent.pth` - Saved demo agent
+## Alternative: Evolutionary Algorithms
+
+For browser-based experimentation with evolutionary approaches to this problem, see: https://evolutionary-ca-webgpu.onrender.com/
+
+## Project Structure
+
+```
+├── rl_GoL_env_gym.py           # Gymnasium environment implementation
+├── main.py                      # Unified CLI for testing, training, evaluation
+├── generate_target_patterns.py # Utility to create achievable targets
+├── target_patterns.json         # Generated target patterns (sampled during episodes)
+├── agent.pth                    # Saved agent weights (created after training)
+└── README.md                    # This file
+```
+
+## Citation
+
+If you use this environment in your research, please cite:
+
+```bibtex
+@misc{gol_pattern_matching_env,
+  author = {Khanlian, Jon},
+  title = {Conway's Game of Life Pattern Matching RL Environment},
+  year = {2025},
+  publisher = {GitHub},
+  url = {https://github.com/Digital-Physics/game-of-life-pattern-RL-gym}
+}
+```
+
+## 📜 License
+
+This project is licensed under the MIT License.
