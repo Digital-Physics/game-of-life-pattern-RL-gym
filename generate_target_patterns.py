@@ -55,13 +55,13 @@ def exhaustive_enumeration(num_steps=6, grid_size=12):
     total_sequences = 21 ** num_steps
     print(f"Total sequences to evaluate: {total_sequences:,}")
     
-    # Estimate time (assuming ~50,000 sequences/second)
+    # Estimate time (assuming ~2000 sequences/second)
     if total_sequences > 0:
-        print(f"Estimated time: ~{total_sequences / 50000:.0f} seconds (~{total_sequences / 50000 / 60:.1f} minutes)")
+        print(f"Estimated time: ~{total_sequences / 2000:.0f} seconds (~{total_sequences / 2000 / 60:.1f} minutes)")
     
     # Check feasibility for num_steps > 6
     if num_steps > 6:
-        print("WARNING: Exhaustive search for more than 6 steps will take a very long time (> 1.5 hours).")
+        print("WARNING: Exhaustive search for more than 6 steps will take a very long time.")
         response = input("Continue? (y/n): ")
         if response.lower() != 'y':
             print("Operation cancelled.")
@@ -95,9 +95,9 @@ def exhaustive_enumeration(num_steps=6, grid_size=12):
                 # If terminated, the final_grid should be the last step before termination,
                 # but typically in GoL this means max_steps reached, so we take the observation.
                 # Assuming the last observation is the final state.
-                final_grid = obs[:, :, 0]
+                final_grid = obs['grid']  # obs[:, :, 0]
             else:
-                final_grid = obs[:, :, 0]
+                final_grid = obs['grid']  # obs[:, :, 0]
             
             grid_hash = grid_to_hash(final_grid)
             

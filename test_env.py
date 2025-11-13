@@ -10,6 +10,7 @@ Test the GoL-2x2-v0 environment with different algorithms:
 Usage:
     python test_env.py --mode random --episodes 3 --render
     python test_env.py --mode greedy --episodes 5 --render
+    python test_env.py --mode manual
 """
 
 import argparse
@@ -24,50 +25,21 @@ def random_policy_test(episodes=5, render=False):
     """Test with random actions, loading the default pattern file."""
     print("\n=== Testing Random Policy ===")
     
-    env = gym.make("GoL-2x2-v0", grid_size=12, max_steps=10, pattern_file=DEFAULT_PATTERN_FILE)
+    render_mode = "human" if render else None
+    env = gym.make("GoL-2x2-v0", grid_size=12, max_steps=10, 
+                   pattern_file=DEFAULT_PATTERN_FILE, render_mode=render_mode)
     
     all_rewards = []
     all_accuracies = []
     
-    if render:
-        import matplotlib.pyplot as plt
-        # Disable default key bindings
-        for key in ['keymap.fullscreen', 'keymap.home', 'keymap.back', 'keymap.forward',
-                    'keymap.pan', 'keymap.zoom', 'keymap.save', 'keymap.quit',
-                    'keymap.grid', 'keymap.yscale', 'keymap.xscale']:
-            plt.rcParams[key] = []
-        
-        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-        ax_current, ax_target, ax_info = axes
-    
     for ep in range(episodes):
         obs, info = env.reset()
-        target = info['target']
+        # --- MODIFIED: Get target from obs ---
+        target = obs['target']
+        # ------------------------------------
         print(f"\nEpisode {ep + 1}/{episodes}")
         print(f"Target density: {target.mean():.3f}")
-        
-        if render:
-            # Setup visualization
-            ax_current.clear()
-            ax_target.clear()
-            ax_info.clear()
-            
-            im_current = ax_current.imshow(obs[:, :, 0], cmap='binary', vmin=0, vmax=1)
-            ax_current.set_title('Current Grid (Step 0/10)')
-            ax_current.set_xticks([])
-            ax_current.set_yticks([])
-            
-            ax_target.imshow(target, cmap='binary', vmin=0, vmax=1)
-            ax_target.set_title('Target Pattern')
-            ax_target.set_xticks([])
-            ax_target.set_yticks([])
-            
-            ax_info.axis('off')
-            info_text = ax_info.text(0.1, 0.5, "", fontsize=12, verticalalignment='center', fontfamily='monospace')
-            
-            head_patches = []
-            plt.ion()
-            plt.show()
+        print(f"Remaining steps: {obs['remaining_steps'][0]}")
         
         episode_reward = 0
         terminated = False
@@ -79,49 +51,7 @@ def random_policy_test(episodes=5, render=False):
             episode_reward += reward
             
             if render:
-                # Update display
-                im_current.set_data(obs[:, :, 0])
-                
-                # Remove old head patches
-                for patch in head_patches:
-                    patch.remove()
-                head_patches.clear()
-                
-                # Draw write head
-                head_mask = obs[:, :, 1]
-                head_pos = np.where(head_mask == 1)
-                if len(head_pos[0]) > 0:
-                    r, c = head_pos[0][0], head_pos[1][0]
-                    for dr in range(2):
-                        for dc in range(2):
-                            rect = plt.Rectangle(
-                                (c + dc - 0.5, r + dr - 0.5), 1, 1,
-                                fill=False, edgecolor='red', linewidth=2
-                            )
-                            ax_current.add_patch(rect)
-                            head_patches.append(rect)
-                
-                # Update info panel
-                action_names = ['↑', '↓', '←', '→', '○'] + [f'{i:X}' for i in range(16)]
-                info_str = (
-                    f"Episode: {ep + 1}/{episodes}\n"
-                    f"Step: {info['step']}/10\n"
-                    f"Action: {action_names[action]}\n"
-                    f"Matches: {info['matches']}/144\n"
-                    f"Accuracy: {info['accuracy']:.1%}\n"
-                    f"Reward: {reward:.3f}\n"
-                )
-                if terminated:
-                    info_str += f"\n{'='*20}\n"
-                    info_str += f"FINAL FITNESS: {reward:.3f}\n"
-                    info_str += f"{'='*20}"
-                
-                info_text.set_text(info_str)
-                ax_current.set_title(f"Current Grid (Step {info['step']}/10)")
-                
-                fig.canvas.draw()
-                fig.canvas.flush_events()
-                plt.pause(0.1)
+                env.render()
             
             if terminated:
                 print(f"  Final accuracy: {info['accuracy']:.3f}")
@@ -132,11 +62,8 @@ def random_policy_test(episodes=5, render=False):
         all_rewards.append(episode_reward)
         
         if render and ep < episodes - 1:
-            plt.pause(1.0)  # Pause between episodes
-    
-    if render:
-        plt.ioff()
-        plt.show(block=True)
+            import time
+            time.sleep(1.0)  # Pause between episodes
     
     env.close()
     
@@ -152,63 +79,32 @@ def greedy_policy_test(episodes=5, render=False):
     """
     print("\n=== Testing Greedy Policy ===")
     
-    # Use the default pattern file defined at the top
-    env = gym.make("GoL-2x2-v0", grid_size=12, max_steps=10, pattern_file=DEFAULT_PATTERN_FILE)
+    render_mode = "human" if render else None
+    env = gym.make("GoL-2x2-v0", grid_size=12, max_steps=10, 
+                   pattern_file=DEFAULT_PATTERN_FILE, render_mode=render_mode)
     
     all_rewards = []
     all_accuracies = []
     
-    if render:
-        import matplotlib.pyplot as plt
-        # Disable default key bindings
-        for key in ['keymap.fullscreen', 'keymap.home', 'keymap.back', 'keymap.forward',
-                    'keymap.pan', 'keymap.zoom', 'keymap.save', 'keymap.quit',
-                    'keymap.grid', 'keymap.yscale', 'keymap.xscale']:
-        
-            plt.rcParams[key] = []
-            
-        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-        ax_current, ax_target, ax_info = axes
-        plt.ion()
-        plt.show()
-    
     for ep in range(episodes):
         obs, info = env.reset()
-        target = info['target']
+        # --- MODIFIED: Get target from obs ---
+        target = obs['target']
+        # ------------------------------------
         print(f"\nEpisode {ep + 1}/{episodes}")
         print(f"Target density: {target.mean():.3f}")
-        
-        if render:
-            # Setup visualization
-            ax_current.clear()
-            ax_target.clear()
-            ax_info.clear()
-            
-            im_current = ax_current.imshow(obs[:, :, 0], cmap='binary', vmin=0, vmax=1)
-            ax_current.set_title('Current Grid (Step 0/10)')
-            ax_current.set_xticks([])
-            ax_current.set_yticks([])
-            
-            ax_target.imshow(target, cmap='binary', vmin=0, vmax=1)
-            ax_target.set_title('Target Pattern')
-            ax_target.set_xticks([])
-            ax_target.set_yticks([])
-            
-            ax_info.axis('off')
-            info_text = ax_info.text(0.1, 0.5, "", fontsize=12, verticalalignment='center', fontfamily='monospace')
-            
-            head_patches = []
-            plt.ion()
-            plt.show()
         
         episode_reward = 0
         terminated = False
         truncated = False
         
         while not (terminated or truncated):
-            # Extract current state
-            current_grid = obs[:, :, 0]
-            head_mask = obs[:, :, 1]
+            # Extract current state from dictionary observation
+            current_grid = obs['grid']
+            head_mask = obs['head_mask']
+            remaining_steps = obs['remaining_steps'][0]
+            
+            # Find head position
             head_pos = np.where(head_mask == 1)
             head_r, head_c = head_pos[0][0], head_pos[1][0]
             
@@ -244,49 +140,7 @@ def greedy_policy_test(episodes=5, render=False):
             episode_reward += reward
             
             if render:
-                # Update display
-                im_current.set_data(obs[:, :, 0])
-                
-                # Remove old head patches
-                for patch in head_patches:
-                    patch.remove()
-                head_patches.clear()
-                
-                # Draw write head
-                head_mask = obs[:, :, 1]
-                head_pos = np.where(head_mask == 1)
-                if len(head_pos[0]) > 0:
-                    r, c = head_pos[0][0], head_pos[1][0]
-                    for dr in range(2):
-                        for dc in range(2):
-                            rect = plt.Rectangle(
-                                (c + dc - 0.5, r + dr - 0.5), 1, 1,
-                                fill=False, edgecolor='red', linewidth=2
-                            )
-                            ax_current.add_patch(rect)
-                            head_patches.append(rect)
-                
-                # Update info panel
-                action_names = ['↑', '↓', '←', '→', '○'] + [f'{i:X}' for i in range(16)]
-                info_str = (
-                    f"Episode: {ep + 1}/{episodes}\n"
-                    f"Step: {info['step']}/10\n"
-                    f"Action: {action_names[action]}\n"
-                    f"Matches: {info['matches']}/144\n"
-                    f"Accuracy: {info['accuracy']:.1%}\n"
-                    f"Reward: {reward:.3f}\n"
-                )
-                if terminated:
-                    info_str += f"\n{'='*20}\n"
-                    info_str += f"FINAL FITNESS: {reward:.3f}\n"
-                    info_str += f"{'='*20}"
-                
-                info_text.set_text(info_str)
-                ax_current.set_title(f"Current Grid (Step {info['step']}/10)")
-                
-                fig.canvas.draw()
-                fig.canvas.flush_events()
-                plt.pause(0.1)
+                env.render()
             
             if terminated:
                 print(f"  Final accuracy: {info['accuracy']:.3f}")
@@ -297,11 +151,8 @@ def greedy_policy_test(episodes=5, render=False):
         all_rewards.append(episode_reward)
         
         if render and ep < episodes - 1:
-            plt.pause(1.0)  # Pause between episodes
-    
-    if render:
-        plt.ioff()
-        plt.show(block=True)
+            import time
+            time.sleep(1.0)  # Pause between episodes
     
     env.close()
     
@@ -312,7 +163,7 @@ def greedy_policy_test(episodes=5, render=False):
 
 def manual_control():
     """
-    Interactive manual control.
+    Interactive manual control with integrated rendering.
     
     Controls:
         Arrow keys: Move write head
@@ -345,86 +196,18 @@ def manual_control():
     print("  R: Reset episode")
     print("  Q/Esc: Quit")
     
-    # Manual control does NOT use the pattern file; it uses a blank target by default
-    env = gym.make("GoL-2x2-v0", grid_size=12, max_steps=10) 
+    # Create environment with human rendering
+    env = gym.make("GoL-2x2-v0", grid_size=12, max_steps=10, render_mode="human")
     obs, info = env.reset()
-    target = info['target']
+    # --- MODIFIED: Get target from obs ---
+    target = obs['target']
+    # ------------------------------------
     
-    # Create figure with same layout as agent modes
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    ax_current, ax_target, ax_info = axes
-    
-    # Current grid
-    im_current = ax_current.imshow(obs[:, :, 0], cmap='binary', vmin=0, vmax=1)
-    ax_current.set_title('Current Grid (Step 0/10)')
-    ax_current.set_xticks([])
-    ax_current.set_yticks([])
-    
-    # Target pattern
-    ax_target.imshow(target, cmap='binary', vmin=0, vmax=1)
-    ax_target.set_title('Target Pattern')
-    ax_target.set_xticks([])
-    ax_target.set_yticks([])
-    
-    # Info panel
-    ax_info.axis('off')
-    info_text = ax_info.text(0.1, 0.5, "", fontsize=12, verticalalignment='center', fontfamily='monospace')
-    
-    head_patches = []
+    # Initial render
+    env.render()
     
     # State tracking
     state = {'obs': obs, 'info': info, 'target': target, 'finished': False}
-    
-    def update_display():
-        im_current.set_data(state['obs'][:, :, 0])
-        
-        # Remove old patches
-        for patch in head_patches:
-            patch.remove()
-        head_patches.clear()
-        
-        # Draw write head
-        head_mask = state['obs'][:, :, 1]
-        head_pos = np.where(head_mask == 1)
-        if len(head_pos[0]) > 0:
-            r, c = head_pos[0][0], head_pos[1][0]
-            for dr in range(2):
-                for dc in range(2):
-                    rect = plt.Rectangle(
-                        (c + dc - 0.5, r + dr - 0.5), 1, 1,
-                        fill=False, edgecolor='red', linewidth=2
-                    )
-                    ax_current.add_patch(rect)
-                    head_patches.append(rect)
-        
-        # Update info
-        matches = int((state['obs'][:, :, 0] == state['target']).sum())
-        accuracy = matches / (12 * 12)
-        step = env.unwrapped.step_count
-        
-        info_str = (
-            f"Step: {step}/10\n"
-            f"Matches: {matches}/144\n"
-            f"Accuracy: {accuracy:.1%}\n"
-            f"\n"
-            f"Controls:\n"
-            f"  ↑↓←→: Move\n"
-            f"  Space: Pass\n"
-            f"  0-F: Write pattern\n"
-            f"  R: Reset\n"
-            f"  Q: Quit\n"
-        )
-        
-        if state['finished']:
-            final_reward = matches / 144.0
-            info_str += f"\n{'='*20}\n"
-            info_str += f"FINAL FITNESS: {final_reward:.3f}\n"
-            info_str += f"{'='*20}\n"
-            info_str += f"\nPress R to restart"
-        
-        info_text.set_text(info_str)
-        ax_current.set_title(f'Current Grid (Step {step}/10)')
-        fig.canvas.draw_idle()
     
     def on_key(event):
         if event.key is None:
@@ -440,17 +223,11 @@ def manual_control():
         # Handle reset
         if key == 'r':
             state['obs'], state['info'] = env.reset()
-            state['target'] = state['info']['target']
+            # --- MODIFIED: Get target from obs after reset ---
+            state['target'] = state['obs']['target']
+            # ------------------------------------------------
             state['finished'] = False
-            
-            # Update target display
-            ax_target.clear()
-            ax_target.imshow(state['target'], cmap='binary', vmin=0, vmax=1)
-            ax_target.set_title('Target Pattern')
-            ax_target.set_xticks([])
-            ax_target.set_yticks([])
-            
-            update_display()
+            env.render()
             print("\nEpisode reset")
             return
         
@@ -487,6 +264,8 @@ def manual_control():
             state['obs'] = obs
             state['info'] = info
             
+            env.render()
+            
             if terminated:
                 state['finished'] = True
                 print(f"\nEpisode complete!")
@@ -494,15 +273,10 @@ def manual_control():
                 print(f"Final fitness: {reward:.3f}")
                 print(f"Press R to reset or Q to quit")
             else:
-                print(f"Step {info['step']}: Action {action_name}, Matches {info['matches']}/144")
-            
-            update_display()
+                print(f"Step {info['step']}: Action {action_name}, Matches {info['matches']}/144, Remaining: {obs['remaining_steps'][0]}")
     
     # Connect event handler
-    fig.canvas.mpl_connect('key_press_event', on_key)
-    
-    # Initial display
-    update_display()
+    env.unwrapped._fig.canvas.mpl_connect('key_press_event', on_key)
     
     # Show plot
     plt.show(block=True)
@@ -514,21 +288,31 @@ def benchmark_environment():
     """Quick benchmark to verify environment is working."""
     print("\n=== Environment Benchmark ===")
     
-    # Use the default pattern file defined at the top
-    env = gym.make("GoL-2x2-v0", grid_size=12, max_steps=10, pattern_file=DEFAULT_PATTERN_FILE) 
+    env = gym.make("GoL-2x2-v0", grid_size=12, max_steps=10, 
+                   pattern_file=DEFAULT_PATTERN_FILE) 
     
     # Test reset
     obs, info = env.reset(seed=42)
     print(f"✓ Reset successful")
-    print(f"  Observation shape: {obs.shape}")
-    print(f"  Target shape: {info['target'].shape}")
+    print(f"  Observation type: {type(obs)}")
+    print(f"  Observation keys: {obs.keys()}")
+    print(f"  Grid shape: {obs['grid'].shape}")
+    print(f"  Head mask shape: {obs['head_mask'].shape}")
+    print(f"  Remaining steps: {obs['remaining_steps']}")
+    # --- MODIFIED: Check target shape in obs ---
+    print(f"  Target shape: {obs['target'].shape}")
+    # -------------------------------------------
     
     # Test all action types
     print(f"\n✓ Testing all 21 actions...")
     for action in tqdm(range(21), desc="Actions"):
         env.reset(seed=42)
         obs, reward, terminated, truncated, info = env.step(action)
-        assert obs.shape == (12, 12, 2)
+        assert obs['grid'].shape == (12, 12)
+        assert obs['head_mask'].shape == (12, 12)
+        assert obs['remaining_steps'].shape == (1,)
+        # Optional: check target is still there
+        assert obs['target'].shape == (12, 12)
         assert 0.0 <= reward <= 1.0
     
     # Test full episode
@@ -537,6 +321,11 @@ def benchmark_environment():
     for step in range(10):
         action = env.action_space.sample()
         obs, reward, terminated, truncated, info = env.step(action)
+        
+        # Verify remaining_steps is correct
+        assert obs['remaining_steps'][0] == 10 - (step + 1), \
+            f"Expected {10 - (step + 1)} remaining steps, got {obs['remaining_steps'][0]}"
+        
         if step < 9:
             assert reward == 0.0, f"Expected 0 reward at step {step}, got {reward}"
             assert not terminated
@@ -562,17 +351,10 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    # The pattern file is now hardcoded as a constant and passed inside the functions
     if args.mode == "random":
-        random_policy_test(
-            episodes=args.episodes, 
-            render=args.render
-        )
+        random_policy_test(episodes=args.episodes, render=args.render)
     elif args.mode == "greedy":
-        greedy_policy_test(
-            episodes=args.episodes, 
-            render=args.render
-        )
+        greedy_policy_test(episodes=args.episodes, render=args.render)
     elif args.mode == "manual":
         manual_control()
     elif args.mode == "benchmark":

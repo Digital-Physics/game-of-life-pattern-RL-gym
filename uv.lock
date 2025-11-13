@@ -768,7 +768,7 @@ wheels = [
 [[package]]
 name = "rl-ca-gym"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "gymnasium" },
     { name = "matplotlib" },
@@ -783,7 +783,7 @@ requires-dist = [
     { name = "gymnasium", specifier = ">=0.29.1" },
     { name = "matplotlib", specifier = ">=3.8.0" },
     { name = "numpy", specifier = ">=1.26.0" },
-    { name = "scipy", specifier = ">=1.16.3" },
+    { name = "scipy", specifier = ">=1.10.0" },
     { name = "torch", specifier = ">=2.2.2" },
     { name = "tqdm", specifier = ">=4.66.0" },
 ]
