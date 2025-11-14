@@ -2,22 +2,9 @@
 """
 main.py
 
-Unified interface for the GoL-2x2-v0 environment.
+1) Reinforcement Learning Interface for the GoL-2x2-v0 environment.
+2) Evolutionary Search Agent 
 
-Usage:
-    # Test the environment
-    python main.py test --mode random --episodes 3 --render
-    python main.py test --mode greedy --episodes 5 --render
-    python main.py test --mode manual
-    
-    # Train an agent
-    python main.py train --episodes 100 --save-path my_agent.pth --render
-    
-    # Evaluate a trained agent
-    python main.py eval --load-path my_agent.pth --episodes 10 --render
-    
-    # Quick benchmark
-    python main.py benchmark
 """
 
 import argparse
@@ -805,12 +792,12 @@ def run_benchmark_suite(args):
 
 
 # ============================================================================
-# BENCHMARK
+# Verification
 # ============================================================================
 
-def run_benchmark():
+def run_verification():
     """Quick environment verification."""
-    print("\n=== Environment Benchmark ===")
+    print("\n=== Environment Verification ===")
     
     env = gym.make("GoL-2x2-v0", grid_size=GRID_SIZE, max_steps=MAX_STEPS,
                    pattern_file=DEFAULT_PATTERN_FILE)
@@ -904,10 +891,10 @@ def main():
     eval_parser.add_argument('--time-limit', type=float, default=DEFAULT_TIME_LIMIT,
                             help=f'Time limit per episode in seconds (default: {DEFAULT_TIME_LIMIT}s)')
     
-    # BENCHMARK command
-    subparsers.add_parser('benchmark', help='Run environment benchmark')
+    # Verification command
+    subparsers.add_parser('verification', help='Run environment verification check')
 
-    # The other benchmark; the benchmark suite of the evolutionary algorithm agent
+    #  Evolutionary Search Agent Benchmark suite
     benchmark_suite_parser = subparsers.add_parser('benchmark-suite', help='Run Evolutionary Algorithm Agent Benchmark Suite')
     benchmark_suite_parser.add_argument('--time-limit', type=float, default=5.0, help='Time limit per episode in seconds')
     benchmark_suite_parser.add_argument('--render', action='store_true',
@@ -928,8 +915,8 @@ def main():
         sys.exit(1)
     
     # Execute command
-    if args.command == 'benchmark':
-        run_benchmark()
+    if args.command == 'verification':
+        run_verification()
 
     elif args.command == 'benchmark-suite':
         run_benchmark_suite(args)

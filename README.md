@@ -1,6 +1,11 @@
-# Reinforcement Learning Gym Environment for Pattern Matching in Conway's Game of Life
+# Reinforcement Learning Gymnasium Environment 🤖🏋🏻
+# Pattern Matching in Conway's "Game of Life Game"
 
-A Gymnasium-compatible environment for training RL agents to construct target patterns in a cellular automaton that evolves according to Conway's Game of Life rules.
+This Repository has
+
+1) A Gymnasium-compatible environment for training an RL agent to construct a target patterns in a cellular automaton grid environment that updates according to Conway's "[Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life)" rules.
+
+2) An Evolutionary Search Agent that uses a few seconds of test-time compute to search for a solution
 
 ![Screenshot of the pattern matching game](./screenshot_GoL_pattern_matching_game.png)
 
@@ -9,13 +14,13 @@ A Gymnasium-compatible environment for training RL agents to construct target pa
 **Objective**: Create the target pattern in the 12x12 grid after exactly 10 time steps, where each step consists of a [Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) update step followed by an agent action.
 
 **Core Mechanics**:
-- Each turn: Game of Life update → Agent action 
-- Agent controls a 2×2 "write head" that can move around the grid and write patterns
-- Final reward based on how well the resulting grid matches the target pattern
+- Controls: The user/agent controls a 2×2 "write head" that can move around the Game of Life grid and write patterns
+- Each Step: 1) First, The Game of Life updates one step → 2) Then, the user/agent action is taken (i.e. Move, Write, or Pass)
+- Final Reward: A percentage based on how well the resulting grid matches the target pattern after the final step
 
 **Actions** (Manual play keyboard shortcuts):
 - **Arrow Keys**: Move 2×2 write head (Up/Down/Left/Right)
-- **Space Bar**: Pass (do nothing)
+- **Space Bar**: Pass (do nothing... after the GoL update step)
 - **0-9, A-F**: Write one of 16 possible 2×2 patterns (hex encoding)
 
 ## Installation
@@ -26,16 +31,11 @@ uv pip install .
 
 ## Quick Start
 
-### 1. Verify Installation
-```bash
-python main.py benchmark
-```
-
-### 2. Test Built-in Policies
+### 1. Test Built-in Policies
 
 ```bash
-# Random policy (baseline)
-python main.py test --mode random --episodes 3 --render
+# Random policy (baseline) (using uv for Python environment management)
+uv run main.py test --mode random --episodes 7 --render
 
 # Greedy policy (smarter baseline)
 python main.py test --mode greedy --episodes 5 --render
@@ -44,7 +44,7 @@ python main.py test --mode greedy --episodes 5 --render
 python main.py test --mode manual
 ```
 
-### 3. Train and Evaluate Your Own Agent
+### 2. Train and Evaluate Your Own Agent
 
 #### Simple RL Agent (Placeholder)
 ```bash
@@ -58,9 +58,11 @@ python main.py eval --agent-type simple --load-path agent.pth --episodes 10 --re
 python main.py eval --agent-type simple --load-path agent.pth --episodes 10 --time-limit 5 --render
 ```
 
-## Implementing Your Own Agent
+### Implement Your Own Agent
 
-To use your own RL algorithm, replace the `SimpleAgent` class in `main.py` with your implementation. Required interface:
+To use your own RL algorithm, replace the `SimpleAgent` class in `main.py` with your implementation. 
+
+#### Required interface:
 
 ```python
 class YourAgent:
@@ -95,7 +97,7 @@ class DQNAgent:
         # ... your implementation
     
     def select_action(self, obs: dict) -> int:
-        # Convert obs dict to tensor
+        # Convert observation dict to tensor
         state_tensor = self._obs_to_tensor(obs)
         # Get Q-values and select action
         with torch.no_grad():
@@ -109,29 +111,29 @@ class DQNAgent:
         self.q_network.load_state_dict(torch.load(path))
 ```
 
-## Compare Results with an Evolutionary Search Agent (Built-in)
+## 3. Compare Results with an Evolutionary Search Agent (Built-in)
 
 ```bash
-# Run evolutionary agent (searches for solution each episode)
+# Run Evolutionary Search Agent 
 python main.py eval --agent-type evolutionary --episodes 5 --render
 
-# Customize evolutionary parameters
-python main.py eval --agent-type evolutionary --episodes 5 --render \
-  --evo-generations 100 --evo-population 200 --evo-elite 0.3 --evo-mutation 0.15
+# Customize Evolutionary Search Agent Parameters
+python main.py eval --agent-type evolutionary --episodes 5 --render --evo-generations 100 --evo-population 200 --evo-elite 0.3 --evo-mutation 0.15
 
-# Test with time limit (will timeout if evolution takes too long)
-python main.py eval --agent-type evolutionary --episodes 5 --time-limit 60 --render
+# Test with time limit (will timeout if evolutionary search takes too long)
+python main.py eval --agent-type evolutionary --episodes 5 --time-limit 4 --render
 ```
 
 **Note on Evolutionary Agents**: 
-The EvolutionarySearchAgent gets its first observation, which includes the target pattern, and then spends the next few seconds searching for a good action sequence solution. It then takes the best solution it found through an evolutionary process of mutating action sequences with good "fitness", and then quickly plays this action sequence in the game. 
+The EvolutionarySearchAgent gets its first observation, which includes the target pattern, and then spends the next few seconds searching for a good action sequence solution. It then takes the best solution it found through an evolutionary process of mutating action sequences with good "fitness", and quickly plays this action sequence in the game. 
 
-There's no training phase - it's pure search. Training and "memory" could be added by saving seen states, looking for close matches when presented with a new target pattern, and then using these "close" action as a starting point for more evolutionary search.
+There's no training phase - it's pure search. And environment observation is not needed to learn a fit action sequence. 
 
+Training and "memory" could be added by saving seen GoL patterns and their associated action sequences. Then when presented with a new target pattern, the 'agent' could look for similar patterns it has seen and use these as a starting point for more evolutionary search.
 
 ## Evolutionary Algorithm Website
 
-For browser-based experimentation with evolutionary approaches to this problem, see: https://evolutionary-ca-webgpu.onrender.com/
+For a browser-based experience, check out: https://evolutionary-ca-webgpu.onrender.com/
 
 
 ## Evolutionary Search Agent Benchmark
@@ -139,7 +141,7 @@ For browser-based experimentation with evolutionary approaches to this problem, 
 #
 #
 
-## Environment Specification
+# Environment Specification
 
 ### Observation Space
 
@@ -174,9 +176,9 @@ Example: 0x9 = 0b1001 = ■ □
                         □ ■
 ```
 
-### Reward Structure
+### Sparse Reward Structure
 
-- **Steps 0-9**: `reward = 0.0` (sparse reward)
+- **Steps 0-9**: `reward = 0.0` 
 - **Step 10** (terminal): `reward = matching_cells / total_cells`
   - Range: `[0.0, 1.0]`
   - `1.0` = perfect match
@@ -189,9 +191,9 @@ Example: 0x9 = 0b1001 = ■ □
    - Agent action executed
 3. **Termination**: After 10 steps, final reward computed based on pattern match
 
-## Generating Achievable Target Patterns 
+## Utility: Generating Achievable Target Patterns 
 
-By default, the environment initialization samples from patterns in `target_patterns.json`. To generate new patterns that are provably achievable within N steps run the code below. The current json file contains all 752 patterns achievable in 4 action steps, and the code below, which will take 21^2 times longer to run, will generate a json file that has all unique patterns achievable in 6 steps (starting from a blank Game of Life grid):
+By default, the environment initialization samples from patterns in `target_patterns.json`. To generate new patterns in this file that are provably achievable within N steps run the code below. The current json file contains all 752 unique patterns achievable in 4 action steps, and the code below, which will take approximate 21^2 times longer to run, will generate a json file that has all unique patterns achievable in 6 steps (starting from a blank Game of Life grid):
 
 ```bash
 python generate_target_patterns.py --num-steps 6
@@ -199,7 +201,7 @@ python generate_target_patterns.py --num-steps 6
 
 ## Command Line Reference
 
-### Test Mode
+### Test Mode (For Exploration, Not Training Evaluation 'Tests')
 ```bash
 python main.py test --mode {random|greedy|manual} [options]
 
@@ -208,7 +210,7 @@ Options:
   --render         Enable visualization
 ```
 
-### Train Mode
+### Train Mode (Note: Evolutionary Search Agent doesn't need training)
 ```bash
 python main.py train --agent-type {simple|evolutionary} [options]
 
@@ -234,16 +236,20 @@ Options:
   --render                Enable visualization
   --time-limit SECONDS    Per-episode time limit (default: 30.0)
   
-Evolutionary agent options (same as train mode)
+Evolutionary agent options:
+  --evo-generations N     Generations per episode (default: 50)
+  --evo-population N      Population size (default: 100)
+  --evo-elite FRAC        Elite fraction (default: 0.2)
+  --evo-mutation RATE     Mutation rate (default: 0.1)
 ```
 
-### Evolutionary Search Agent Benchmark Suite Mode 
+### Evolutionary Search Agent - Benchmark Suite Mode 
 ```bash
 python main.py benchmark-suite [options]
 
 Options:
   --time-limit SECONDS    Per-episode time limit (default: 5.0)
-  --render                Enable visualization (slow)
+  --render                Enable visualization 
   
 Evolutionary agent options:
   --evo-generations N     Generations per episode (default: 50)
@@ -254,16 +260,16 @@ Evolutionary agent options:
 
 ### Benchmark Suite Mode
 
-Runs the evolutionary agent on **every pattern** in `target_patterns.json` with a 5-second compute/search time limit per pattern. See [video](https://vimeo.com/1136735348).
+Runs an Evolutionary Search Agent on **every pattern** in `target_patterns.json` with a 5-second test-time compute limit for each pattern/game. See [video](https://vimeo.com/1136735348).
 
 **Basic usage:**
 ```bash
-python main.py benchmark-suite --time-limit 5.0
+python main.py benchmark-suite
 ```
 
 **With custom evolutionary parameters:**
 ```bash
-python main.py benchmark-suite --time-limit 5.0 \
+python main.py benchmark-suite --time-limit 4.0 \
   --evo-generations 100 --evo-population 200 \
   --evo-elite 0.3 --evo-mutation 0.15
 ```
@@ -289,30 +295,12 @@ Creates two files with timestamps:
    - Command to reproduce the benchmark
 
 **Statistics Tracked**
-- Perfect match rate (accuracy ≥ 99.9%)
+- Perfect match rate 
 - Timeout rate 
 - Reward statistics (mean, std, median, min, max)
 - Time statistics (mean, std, total)
 - Per-pattern details
 
-**Progress Display**
-
-Uses `tqdm` for a progress bar while testing all patterns:
-```
-Testing patterns: 100%|██████████████| 100/100 [05:42<00:00,  3.42s/it]
-```
-
-## Project Structure
-
-```
-├── rl_GoL_env_gym.py           # Gymnasium environment implementation
-├── main.py                      # Unified CLI for testing, training, evaluation
-├── generate_target_patterns.py # Utility to create achievable targets
-├── evo_ca.py                    # Standalone evolutionary algorithm with visualization
-├── target_patterns.json         # Generated target patterns (sampled during episodes)
-├── agent.pth                    # Saved agent weights (created after training)
-└── README.md                    # This file
-```
 
 ## Citation
 
