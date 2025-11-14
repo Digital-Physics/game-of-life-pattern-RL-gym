@@ -1,0 +1,33 @@
+EVOLUTIONARY AGENT BENCHMARK SUMMARY
+======================================================================
+
+Date: 2025-11-13T20:47:27.188622
+Patterns Tested: 752
+Time Limit: 5.0s per pattern
+
+Evolutionary Algorithm Parameters:
+  Generations: 50
+  Population: 100
+  Elite Fraction: 0.2
+  Mutation Rate: 0.1
+
+RESULTS:
+----------------------------------------------------------------------
+Perfect Matches: 420/752 (55.9%)
+Timeouts:        5/752 (0.7%)
+
+Reward Statistics:
+  Average: 0.9922 ± 0.0630
+  Median:  1.0000
+  Min:     0.0000
+  Max:     1.0000
+
+Time Statistics:
+  Average per pattern: 2.84s ± 1.22s
+  Total time:          2138.1s (35.6 minutes)
+
+======================================================================
+To reproduce this benchmark:
+python main.py benchmark-suite --time-limit 5.0 \
+  --evo-generations 50 --evo-population 100 \
+  --evo-elite 0.2 --evo-mutation 0.1

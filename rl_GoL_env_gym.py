@@ -186,15 +186,22 @@ class GoL2x2Env(gym.Env):
         self.ca_grid = np.zeros((self.grid_size, self.grid_size), dtype=np.int8)
         self.head_pos = (self.grid_size // 2 - 1, self.grid_size // 2 - 1)
         
-        # Select target pattern using the environment's RNG
+        # Select target pattern using the environment's RNG or from options
         if self.target_patterns:
-            idx = self.np_random.integers(len(self.target_patterns))
+            # Check if a specific pattern index was requested
+            if options is not None and 'pattern_index' in options:
+                idx = options['pattern_index']
+                if not (0 <= idx < len(self.target_patterns)):
+                    raise ValueError(f"pattern_index {idx} out of range [0, {len(self.target_patterns)})")
+            else:
+                # Random selection using environment's RNG
+                idx = self.np_random.integers(len(self.target_patterns))
+            
             self.target = self.target_patterns[idx].copy()
         else:
             self.target = np.zeros((self.grid_size, self.grid_size), dtype=np.int8)
             
         obs = self._obs()
-        # The target is now in obs, so we remove it from info
         info = {} 
         return obs, info
 
