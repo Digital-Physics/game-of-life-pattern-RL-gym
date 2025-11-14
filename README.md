@@ -6,10 +6,10 @@ A Gymnasium-compatible environment for training RL agents to construct target pa
 
 ## Game Overview
 
-**Objective**: Match a target pattern after exactly 10 timesteps of Game of Life evolution and agent actions.
+**Objective**: Create the target pattern in the 12x12 grid after exactly 10 time steps, where each step consists of a [Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life) update step followed by an agent action.
 
 **Core Mechanics**:
-- Each turn: Game of Life update → Agent action → Repeat
+- Each turn: Game of Life update → Agent action 
 - Agent controls a 2×2 "write head" that can move around the grid and write patterns
 - Final reward based on how well the resulting grid matches the target pattern
 
@@ -57,21 +57,6 @@ python main.py eval --agent-type simple --load-path agent.pth --episodes 10 --re
 # Evaluate with strict time limit
 python main.py eval --agent-type simple --load-path agent.pth --episodes 10 --time-limit 5 --render
 ```
-
-#### Evolutionary Search Agent (Built-in)
-```bash
-# Run evolutionary agent (searches for solution each episode)
-python main.py eval --agent-type evolutionary --episodes 5 --render
-
-# Customize evolutionary parameters
-python main.py eval --agent-type evolutionary --episodes 5 --render \
-  --evo-generations 100 --evo-population 200 --evo-elite 0.3 --evo-mutation 0.15
-
-# Test with time limit (will timeout if evolution takes too long)
-python main.py eval --agent-type evolutionary --episodes 5 --time-limit 60 --render
-```
-
-**Note on Evolutionary Agents**: Unlike RL agents that learn across episodes, evolutionary agents solve each episode from scratch by running evolution. The agent runs a genetic algorithm at the start of each episode to find a good action sequence for the current target pattern. There's no training phase - it's pure search.
 
 ## Implementing Your Own Agent
 
@@ -124,6 +109,36 @@ class DQNAgent:
         self.q_network.load_state_dict(torch.load(path))
 ```
 
+## Compare Results with an Evolutionary Search Agent (Built-in)
+
+```bash
+# Run evolutionary agent (searches for solution each episode)
+python main.py eval --agent-type evolutionary --episodes 5 --render
+
+# Customize evolutionary parameters
+python main.py eval --agent-type evolutionary --episodes 5 --render \
+  --evo-generations 100 --evo-population 200 --evo-elite 0.3 --evo-mutation 0.15
+
+# Test with time limit (will timeout if evolution takes too long)
+python main.py eval --agent-type evolutionary --episodes 5 --time-limit 60 --render
+```
+
+**Note on Evolutionary Agents**: 
+The EvolutionarySearchAgent gets its first observation, which includes the target pattern, and then spends the next few seconds searching for a good action sequence solution. It then takes the best solution it found through an evolutionary process of mutating action sequences with good "fitness", and then quickly plays this action sequence in the game. 
+
+There's no training phase - it's pure search. Training and "memory" could be added by saving seen states, looking for close matches when presented with a new target pattern, and then using these "close" action as a starting point for more evolutionary search.
+
+
+## Evolutionary Algorithm Website
+
+For browser-based experimentation with evolutionary approaches to this problem, see: https://evolutionary-ca-webgpu.onrender.com/
+
+
+## Evolutionary Search Agent Benchmark
+![Evo Search Agent Stats](./screenshot_Evolutionary_Search_Agent_stats.png)
+#
+#
+
 ## Environment Specification
 
 ### Observation Space
@@ -174,15 +189,13 @@ Example: 0x9 = 0b1001 = ■ □
    - Agent action executed
 3. **Termination**: After 10 steps, final reward computed based on pattern match
 
-## Generating Achievable Target Patterns
+## Generating Achievable Target Patterns 
 
-By default, the environment samples from patterns in `target_patterns.json`. To generate new patterns that are provably achievable within N steps:
+By default, the environment initialization samples from patterns in `target_patterns.json`. To generate new patterns that are provably achievable within N steps run the code below. The current json file contains all 752 patterns achievable in 4 action steps, and the code below, which will take 21^2 times longer to run, will generate a json file that has all unique patterns achievable in 6 steps (starting from a blank Game of Life grid):
 
 ```bash
 python generate_target_patterns.py --num-steps 6
 ```
-
-This creates/updates `target_patterns.json`, which the environment uses for sampling targets.
 
 ## Command Line Reference
 
@@ -224,13 +237,7 @@ Options:
 Evolutionary agent options (same as train mode)
 ```
 
-### Benchmark Mode
-```bash
-python main.py benchmark
-```
-Quick sanity check that verifies the environment is working correctly.
-
-### Benchmark Suite Mode
+### Evolutionary Search Agent Benchmark Suite Mode 
 ```bash
 python main.py benchmark-suite [options]
 
@@ -247,7 +254,7 @@ Evolutionary agent options:
 
 ### Benchmark Suite Mode
 
-Runs the evolutionary agent on **every pattern** in `target_patterns.json` with a 5-second time limit per pattern. See [video](https://vimeo.com/1136735348).
+Runs the evolutionary agent on **every pattern** in `target_patterns.json` with a 5-second compute/search time limit per pattern. See [video](https://vimeo.com/1136735348).
 
 **Basic usage:**
 ```bash
@@ -261,7 +268,7 @@ python main.py benchmark-suite --time-limit 5.0 \
   --evo-elite 0.3 --evo-mutation 0.15
 ```
 
-**With rendering (warning: slow):**
+**With visual rendering:**
 ```bash
 python main.py benchmark-suite --time-limit 5.0 --render
 ```
@@ -294,11 +301,6 @@ Uses `tqdm` for a progress bar while testing all patterns:
 ```
 Testing patterns: 100%|██████████████| 100/100 [05:42<00:00,  3.42s/it]
 ```
-
-## Evolutionary Algorithm Website
-
-For browser-based experimentation with evolutionary approaches to this problem, see: https://evolutionary-ca-webgpu.onrender.com/
-
 
 ## Project Structure
 
