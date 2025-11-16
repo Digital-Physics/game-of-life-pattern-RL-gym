@@ -142,7 +142,7 @@ class EvolutionarySearchAgent:
         if obs['remaining_steps'][0] == MAX_STEPS:
             self.current_episode += 1
             if self.verbose:
-                print(f"\n🧬 Episode {self.current_episode}: Running evolution...")
+                print(f"\n Episode {self.current_episode}: Running evolution...")
             
             target = obs['target']
             current_grid = obs['grid']

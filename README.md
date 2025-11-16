@@ -113,7 +113,7 @@ class DQNAgent:
 
 ## 3. Compare Results with an Evolutionary Search Agent (Built-in)
 
-The Evolutionary Search Agent uses test-time compute to search for optimal action sequences through evolutionary algorithms. It supports three mutation strategies:
+The Evolutionary Search Agent uses test-time compute to search for optimal action sequences through evolutionary algorithms. It is not a traditional genetic algorithm, but rather more of a phenotype/output-level process which directly mutates the desired action sequence. It supports three mutation strategies:
 
 ### Mutation Modes
 
