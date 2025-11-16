@@ -118,12 +118,13 @@ class EvolutionarySearchAgent:
     Then executes actions from that sequence one by one.
     """
     def __init__(self, action_space, generations=50, population_size=100, 
-                 elite_fraction=0.2, mutation_rate=0.1, verbose=True):
+                 elite_fraction=0.2, mutation_rate=0.1, mutation_mode='sexual', verbose=True):
         self.action_space = action_space
         self.generations = generations
         self.population_size = population_size
         self.elite_size = int(population_size * elite_fraction)
         self.mutation_rate = mutation_rate
+        self.mutation_mode = mutation_mode  # 'sexual', 'asexual', or 'both'
         self.verbose = verbose
         
         # Episode state
@@ -249,26 +250,70 @@ class EvolutionarySearchAgent:
                 elite_indices = np.argsort(fitness_scores)[-self.elite_size:]
                 elites = [population[i].copy() for i in elite_indices]
                 
-                # Create new population
+                # Create new population starting with elites
                 new_population = elites.copy()
                 
-                # Crossover and mutation
-                while len(new_population) < self.population_size:
-                    parent_indices = np.random.choice(len(elites), size=2, replace=False)
-                    parent1 = elites[parent_indices[0]]
-                    parent2 = elites[parent_indices[1]]
+                # Apply mutation strategy
+                if self.mutation_mode == 'asexual':
+                    # Asexual: mutate elites directly
+                    while len(new_population) < self.population_size:
+                        # Select random elite
+                        parent = elites[np.random.randint(len(elites))].copy()
+                        
+                        # Mutate
+                        for i in range(MAX_STEPS):
+                            if np.random.random() < self.mutation_rate:
+                                parent[i] = np.random.randint(0, ACTION_SIZE)
+                        
+                        new_population.append(parent)
+                
+                elif self.mutation_mode == 'sexual':
+                    # Sexual: crossover and mutation
+                    while len(new_population) < self.population_size:
+                        parent_indices = np.random.choice(len(elites), size=2, replace=False)
+                        parent1 = elites[parent_indices[0]]
+                        parent2 = elites[parent_indices[1]]
+                        
+                        # Crossover
+                        crossover_point = np.random.randint(1, MAX_STEPS)
+                        child = np.concatenate([parent1[:crossover_point], 
+                                              parent2[crossover_point:]])
+                        
+                        # Mutation
+                        for i in range(MAX_STEPS):
+                            if np.random.random() < self.mutation_rate:
+                                child[i] = np.random.randint(0, ACTION_SIZE)
+                        
+                        new_population.append(child)
+                
+                elif self.mutation_mode == 'both':
+                    # Both: mix of asexual and sexual reproduction
+                    target_size = self.population_size - len(new_population)
+                    asexual_count = target_size // 2
                     
-                    # Crossover
-                    crossover_point = np.random.randint(1, MAX_STEPS)
-                    child = np.concatenate([parent1[:crossover_point], 
-                                          parent2[crossover_point:]])
+                    # Asexual reproduction
+                    for _ in range(asexual_count):
+                        parent = elites[np.random.randint(len(elites))].copy()
+                        for i in range(MAX_STEPS):
+                            if np.random.random() < self.mutation_rate:
+                                parent[i] = np.random.randint(0, ACTION_SIZE)
+                        new_population.append(parent)
                     
-                    # Mutation
-                    for i in range(MAX_STEPS):
-                        if np.random.random() < self.mutation_rate:
-                            child[i] = np.random.randint(0, ACTION_SIZE)
-                    
-                    new_population.append(child)
+                    # Sexual reproduction
+                    while len(new_population) < self.population_size:
+                        parent_indices = np.random.choice(len(elites), size=2, replace=False)
+                        parent1 = elites[parent_indices[0]]
+                        parent2 = elites[parent_indices[1]]
+                        
+                        crossover_point = np.random.randint(1, MAX_STEPS)
+                        child = np.concatenate([parent1[:crossover_point], 
+                                              parent2[crossover_point:]])
+                        
+                        for i in range(MAX_STEPS):
+                            if np.random.random() < self.mutation_rate:
+                                child[i] = np.random.randint(0, ACTION_SIZE)
+                        
+                        new_population.append(child)
                 
                 population = new_population[:self.population_size]
         
@@ -295,6 +340,7 @@ class EvolutionarySearchAgent:
             'population_size': self.population_size,
             'elite_fraction': self.elite_size / self.population_size,
             'mutation_rate': self.mutation_rate,
+            'mutation_mode': self.mutation_mode,
             'sessions_run': self.current_episode
         }
         with open(path, 'w') as f:
@@ -319,11 +365,13 @@ class EvolutionarySearchAgent:
         self.population_size = data['population_size']
         self.elite_size = int(data['population_size'] * data['elite_fraction'])
         self.mutation_rate = data['mutation_rate']
+        self.mutation_mode = data.get('mutation_mode', 'sexual')  # Default to sexual for backwards compatibility
         self.current_episode = 0  # Always start fresh
         
         print(f"✓ Evolutionary agent config loaded from {path}")
         print(f"  Generations: {self.generations}, Population: {self.population_size}")
         print(f"  Elite: {data['elite_fraction']}, Mutation: {self.mutation_rate}")
+        print(f"  Mutation mode: {self.mutation_mode}")
 
 
 # ============================================================================
@@ -507,14 +555,7 @@ def run_manual_control(env):
 
 def train_agent(env, agent, episodes=100, render=False):
     """Train agent (placeholder - implement your training loop)."""
-    is_evolutionary = isinstance(agent, EvolutionarySearchAgent)
-    
-    if is_evolutionary:
-        print(f"\n=== Running Evolutionary Agent ({episodes} episodes) ===")
-        print("Note: Evolutionary agents learn from scratch each episode via evolution.")
-        print("'Training' here just means running multiple test episodes.\n")
-    else:
-        print(f"\n=== Training Agent ({episodes} episodes) ===")
+    print(f"\n=== Training Agent ({episodes} episodes) ===")
     
     for ep in range(1, episodes + 1):
         obs, info = env.reset()
@@ -533,10 +574,7 @@ def train_agent(env, agent, episodes=100, render=False):
             print(f"Episode {ep}/{episodes} | Reward: {episode_reward:.3f} | "
                   f"Accuracy: {info['accuracy']:.3f}")
     
-    if is_evolutionary:
-        print("\n✓ Evaluation complete (no learning occurred - agent evolves fresh each time)")
-    else:
-        print("✓ Training complete")
+    print("✓ Training complete")
 
 
 def evaluate_agent(env, agent, episodes=10, render=False):
@@ -615,6 +653,7 @@ def run_benchmark_suite(args):
     print(f"  Population: {args.evo_population}")
     print(f"  Elite fraction: {args.evo_elite}")
     print(f"  Mutation rate: {args.evo_mutation}")
+    print(f"  Mutation mode: {args.evo_mutation_mode}")
     print("\nStarting benchmark...\n")
     
     # Create agent
@@ -625,14 +664,15 @@ def run_benchmark_suite(args):
 
     env = TimeLimitWrapper(env, args.time_limit)
     
-    # agent = EvolutionarySearchAgent(
-    #     env.action_space,
-    #     generations=args.evo_generations,
-    #     population_size=args.evo_population,
-    #     elite_fraction=args.evo_elite,
-    #     mutation_rate=args.evo_mutation,
-    #     verbose=False  # Disable per-episode printing for cleaner output
-    # )
+    agent = EvolutionarySearchAgent(
+        env.action_space,
+        generations=args.evo_generations,
+        population_size=args.evo_population,
+        elite_fraction=args.evo_elite,
+        mutation_rate=args.evo_mutation,
+        mutation_mode=args.evo_mutation_mode,
+        verbose=False  # Disable per-episode printing for cleaner output
+    )
     
     # Results tracking
     results = {
@@ -644,6 +684,7 @@ def run_benchmark_suite(args):
             'evo_population': args.evo_population,
             'evo_elite': args.evo_elite,
             'evo_mutation': args.evo_mutation,
+            'evo_mutation_mode': args.evo_mutation_mode,
         },
         'pattern_results': []
     }
@@ -656,14 +697,14 @@ def run_benchmark_suite(args):
     # Run benchmark on each pattern
     for pattern_idx in tqdm(range(num_patterns), desc="Testing patterns"):
         # This ensures the agent's internal state (current_episode, best_sequence_ever) is reset, forcing a new evolutionary search for the current target pattern.
-        agent = EvolutionarySearchAgent(
-            env.action_space,
-            generations=args.evo_generations,
-            population_size=args.evo_population,
-            elite_fraction=args.evo_elite,
-            mutation_rate=args.evo_mutation,
-            verbose=False  # Disable per-episode printing for cleaner output
-        )
+        # agent = EvolutionarySearchAgent(
+        #     env.action_space,
+        #     generations=args.evo_generations,
+        #     population_size=args.evo_population,
+        #     elite_fraction=args.evo_elite,
+        #     mutation_rate=args.evo_mutation,
+        #     verbose=False  # Disable per-episode printing for cleaner output
+        # )
 
         # Reset with this specific pattern using the proper API
         obs, info = env.reset(options={'pattern_index': pattern_idx})
@@ -765,7 +806,8 @@ def run_benchmark_suite(args):
         f.write(f"  Generations: {args.evo_generations}\n")
         f.write(f"  Population: {args.evo_population}\n")
         f.write(f"  Elite Fraction: {args.evo_elite}\n")
-        f.write(f"  Mutation Rate: {args.evo_mutation}\n\n")
+        f.write(f"  Mutation Rate: {args.evo_mutation}\n")
+        f.write(f"  Mutation Mode: {args.evo_mutation_mode}\n\n")
         
         f.write("RESULTS:\n")
         f.write("-"*70 + "\n")
@@ -786,7 +828,8 @@ def run_benchmark_suite(args):
         f.write("To reproduce this benchmark:\n")
         f.write(f"python main.py benchmark-suite --time-limit {args.time_limit} \\\n")
         f.write(f"  --evo-generations {args.evo_generations} --evo-population {args.evo_population} \\\n")
-        f.write(f"  --evo-elite {args.evo_elite} --evo-mutation {args.evo_mutation}\n")
+        f.write(f"  --evo-elite {args.evo_elite} --evo-mutation {args.evo_mutation} \\\n")
+        f.write(f"  --evo-mutation-mode {args.evo_mutation_mode}\n")
     
     print(f"Human-readable summary saved to: {summary_file}\n")
 
@@ -877,6 +920,8 @@ def main():
                              help='Elite fraction (evolutionary only)')
     train_parser.add_argument('--evo-mutation', type=float, default=0.1,
                              help='Mutation rate (evolutionary only)')
+    train_parser.add_argument('--evo-mutation-mode', choices=['sexual', 'asexual', 'both'],
+                             default='sexual', help='Mutation mode (evolutionary only)')
     
     # EVAL command
     eval_parser = subparsers.add_parser('eval', help='Evaluate trained agent')
@@ -890,13 +935,20 @@ def main():
                             help='Enable rendering')
     eval_parser.add_argument('--time-limit', type=float, default=DEFAULT_TIME_LIMIT,
                             help=f'Time limit per episode in seconds (default: {DEFAULT_TIME_LIMIT}s)')
-    
-    # Verification command
-    subparsers.add_parser('verification', help='Run environment verification check')
+    eval_parser.add_argument('--evo-generations', type=int, default=50,
+                             help='Generations per evolution run. (evolutionary only)')
+    eval_parser.add_argument('--evo-population', type=int, default=100,
+                             help='Population size (evolutionary only)')
+    eval_parser.add_argument('--evo-elite', type=float, default=0.2,
+                             help='Elite fraction (evolutionary only)')
+    eval_parser.add_argument('--evo-mutation', type=float, default=0.1,
+                             help='Mutation rate (evolutionary only)')
+    eval_parser.add_argument('--evo-mutation-mode', choices=['sexual', 'asexual', 'both'],
+                             default='sexual', help='Mutation mode (evolutionary only)')
 
     #  Evolutionary Search Agent Benchmark suite
     benchmark_suite_parser = subparsers.add_parser('benchmark-suite', help='Run Evolutionary Algorithm Agent Benchmark Suite')
-    benchmark_suite_parser.add_argument('--time-limit', type=float, default=5.0, help='Time limit per episode in seconds')
+    benchmark_suite_parser.add_argument('--time-limit', type=float, default=7.0, help='Time limit per episode in seconds')
     benchmark_suite_parser.add_argument('--render', action='store_true',
                              help='Enable rendering')
     benchmark_suite_parser.add_argument('--evo-generations', type=int, default=50,
@@ -907,6 +959,11 @@ def main():
                              help='Elite fraction (evolutionary only)')
     benchmark_suite_parser.add_argument('--evo-mutation', type=float, default=0.1,
                              help='Mutation rate (evolutionary only)')
+    benchmark_suite_parser.add_argument('--evo-mutation-mode', choices=['sexual', 'asexual', 'both'],
+                             default='sexual', help='Mutation mode')
+
+    # Verification command
+    subparsers.add_parser('verification', help='Run environment verification check')
 
     args = parser.parse_args()
     
@@ -936,36 +993,25 @@ def main():
         env.close()
     
     elif args.command == 'train':
+        # Check if evolutionary agent was requested
+        if args.agent_type == 'evolutionary':
+            print("\n⚠️  Evolutionary agents don't support training mode for developing memory at the moment.")
+            print("Evolutionary agents evolve solutions from scratch each episode.")
+            print("\nPlease use one of these commands instead:")
+            print("  - 'eval' to evaluate the evolutionary agent on random patterns")
+            print("  - 'benchmark-suite' to test on all patterns systematically")
+            print("\nExample:")
+            print(f"  python main.py eval --agent-type evolutionary --episodes {args.episodes}")
+            print(f"  python main.py benchmark-suite --evo-generations {args.evo_generations}")
+            sys.exit(1)
+        
         render_mode = "human" if args.render else None
         env = gym.make("GoL-2x2-v0", grid_size=GRID_SIZE, max_steps=MAX_STEPS,
                       pattern_file=DEFAULT_PATTERN_FILE, render_mode=render_mode)
         
-        # Create agent based on type
-        if args.agent_type == 'evolutionary':
-            agent = EvolutionarySearchAgent(
-                env.action_space,
-                generations=args.evo_generations,
-                population_size=args.evo_population,
-                elite_fraction=args.evo_elite,
-                mutation_rate=args.evo_mutation,
-                verbose=True
-            )
-            print(f"\n🧬 Evolutionary Agent Configuration:")
-            print(f"  Generations per episode: {args.evo_generations}")
-            print(f"  Population size: {args.evo_population}")
-            print(f"  Elite fraction: {args.evo_elite}")
-            print(f"  Mutation rate: {args.evo_mutation}")
-        else:
-            agent = SimpleAgent(env.action_space)
-        
+        agent = SimpleAgent(env.action_space)
         train_agent(env, agent, args.episodes, args.render)
-        
-        # Adjust save path for evolutionary agent
-        save_path = args.save_path
-        if args.agent_type == 'evolutionary' and not save_path.endswith('.json'):
-            save_path = save_path.replace('.pth', '.json')
-        
-        agent.save(save_path)
+        agent.save(args.save_path)
         env.close()
     
     elif args.command == 'eval':

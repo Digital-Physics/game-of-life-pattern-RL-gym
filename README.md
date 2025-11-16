@@ -3,7 +3,7 @@
 
 This Repository has
 
-1) A Gymnasium-compatible environment for training an RL agent to construct a target patterns in a cellular automaton grid environment that updates according to Conway's "[Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life)" rules.
+1) A Gymnasium-compatible environment for training an RL agent to construct a target pattern in a cellular automaton grid environment that updates according to Conway's "[Game of Life](https://en.wikipedia.org/wiki/Conway%27s_Game_of_Life)" rules.
 
 2) An Evolutionary Search Agent that uses a few seconds of test-time compute to search for a solution
 
@@ -84,7 +84,7 @@ class YourAgent:
         pass
 ```
 
-The training and evaluation infrastructure handles everything else (environment setup, episode loops, rendering, metrics, time limits).
+The training and evaluation infrastructure handles everything else (environment setup, episode loops, visualization rendering, metrics, time limits).
 
 ### Example: Adding an RL Algorithm
 
@@ -113,25 +113,55 @@ class DQNAgent:
 
 ## 3. Compare Results with an Evolutionary Search Agent (Built-in)
 
+The Evolutionary Search Agent uses test-time compute to search for optimal action sequences through evolutionary algorithms. It supports three mutation strategies:
+
+### Mutation Modes
+
+- **Sexual** (default): Two-parent crossover followed by mutation. Maintains genetic diversity through recombination.
+- **Asexual**: Direct mutation of elite individuals without crossover. Faster convergence but less diversity.
+- **Both**: Hybrid approach using 50% asexual and 50% sexual reproduction for balanced exploration.
+
+### Basic Evaluation
+
 ```bash
-# Run Evolutionary Search Agent 
+# Run with default sexual mutation
 python main.py eval --agent-type evolutionary --episodes 5 --render
 
-# Customize Evolutionary Search Agent Parameters
-python main.py eval --agent-type evolutionary --episodes 5 --render --evo-generations 100 --evo-population 200 --evo-elite 0.3 --evo-mutation 0.15
+# Try asexual mutation (faster convergence)
+python main.py eval --agent-type evolutionary --episodes 5 --evo-mutation-mode asexual --render
 
-# Test with time limit (will timeout if evolutionary search takes too long)
+# Use hybrid approach
+python main.py eval --agent-type evolutionary --episodes 5 --evo-mutation-mode both --render
+```
+
+### Customize Evolutionary Parameters
+
+```bash
+# Full customization with sexual mutation
+python main.py eval --agent-type evolutionary --episodes 5 --render \
+  --evo-generations 100 --evo-population 200 \
+  --evo-elite 0.3 --evo-mutation 0.15 \
+  --evo-mutation-mode sexual
+
+# Test with time limit (will timeout if search takes too long)
 python main.py eval --agent-type evolutionary --episodes 5 --time-limit 4 --render
 ```
 
 **Note on Evolutionary Agents**: 
 The EvolutionarySearchAgent gets its first observation, which includes the target pattern, and then spends the next few seconds searching for a good action sequence solution. It then takes the best solution it found through an evolutionary process of mutating action sequences with good "fitness", and quickly plays this action sequence in the game. 
 
-There's no training phase - it's pure search. And environment observation is not needed to learn a fit action sequence. 
+**There's no training phase** - it's pure search conducted at test time. 
 
-Training and "memory" could be added by saving seen GoL patterns and their associated action sequences. Then when presented with a new target pattern, the 'agent' could look for similar patterns it has seen and use these as a starting point for more evolutionary search.
+**An exact simulation of the environment is used instead of learning a model of it** This agent leverages knowledge of the environment dynamics. The evolutionary process does not explicitly need environment observation (i.e. the state of the GoL grid, where the agent is, and remaining time steps) so long as it has a way to simulate/evaluate an action sequence and compute a rewards/fitness.
 
-## Evolutionary Algorithm Website
+**Future Enhancement**: 
+
+- Training and "memory" could be added by saving seen GoL patterns and their associated action sequences. Then when presented with a new target pattern, the 'agent' could look for similar patterns it has seen and use the associated action sequences as a starting point for more evolutionary search.
+
+- "Islands" (See [website](https://evolutionary-ca-webgpu.onrender.com/))
+
+
+## Evolutionary Search Algorithm Website
 
 For a browser-based experience, check out: https://evolutionary-ca-webgpu.onrender.com/
 
@@ -180,8 +210,9 @@ Example: 0x9 = 0b1001 = ■ □
 
 - **Steps 0-9**: `reward = 0.0` 
 - **Step 10** (terminal): `reward = matching_cells / total_cells`
-  - Range: `[0.0, 1.0]`
+  - Range: `[0.0, 1.0]` 
   - `1.0` = perfect match
+  - Note: Target Patterns with mostly dead cells score close to 1
 
 ### Episode Dynamics
 
@@ -193,7 +224,7 @@ Example: 0x9 = 0b1001 = ■ □
 
 ## Utility: Generating Achievable Target Patterns 
 
-By default, the environment initialization samples from patterns in `target_patterns.json`. To generate new patterns in this file that are provably achievable within N steps run the code below. The current json file contains all 752 unique patterns achievable in 4 action steps, and the code below, which will take approximate 21^2 times longer to run, will generate a json file that has all unique patterns achievable in 6 steps (starting from a blank Game of Life grid):
+By default, the environment initialization samples from patterns in `target_patterns.json`. To generate new patterns in this file that are provably achievable within N steps run the code below. The current json file contains all 752 unique patterns achievable in 4 action steps, and the code below, which will take approximately 21^2 times longer to run, will generate a json file that has all unique patterns achievable in 6 steps (starting from a blank Game of Life grid):
 
 ```bash
 python generate_target_patterns.py --num-steps 6
@@ -210,20 +241,16 @@ Options:
   --render         Enable visualization
 ```
 
-### Train Mode (Note: Evolutionary Search Agent doesn't need training)
+### Train Mode
 ```bash
-python main.py train --agent-type {simple|evolutionary} [options]
+python main.py train --agent-type simple [options]
 
 Options:
   --episodes N            Number of episodes (default: 100)
-  --save-path PATH        Save location (default: agent.pth or agent.json)
+  --save-path PATH        Save location (default: agent.pth)
   --render                Enable visualization
-  
-Evolutionary agent options:
-  --evo-generations N     Generations per episode (default: 50)
-  --evo-population N      Population size (default: 100)
-  --evo-elite FRAC        Elite fraction (default: 0.2)
-  --evo-mutation RATE     Mutation rate (default: 0.1)
+
+Note: Evolutionary agents do not support training mode. Use 'eval' or 'benchmark-suite' instead.
 ```
 
 ### Eval Mode
@@ -237,30 +264,16 @@ Options:
   --time-limit SECONDS    Per-episode time limit (default: 30.0)
   
 Evolutionary agent options:
-  --evo-generations N     Generations per episode (default: 50)
-  --evo-population N      Population size (default: 100)
-  --evo-elite FRAC        Elite fraction (default: 0.2)
-  --evo-mutation RATE     Mutation rate (default: 0.1)
-```
-
-### Evolutionary Search Agent - Benchmark Suite Mode 
-```bash
-python main.py benchmark-suite [options]
-
-Options:
-  --time-limit SECONDS    Per-episode time limit (default: 5.0)
-  --render                Enable visualization 
-  
-Evolutionary agent options:
-  --evo-generations N     Generations per episode (default: 50)
-  --evo-population N      Population size (default: 100)
-  --evo-elite FRAC        Elite fraction (default: 0.2)
-  --evo-mutation RATE     Mutation rate (default: 0.1)
+  --evo-generations N       Generations per episode (default: 50)
+  --evo-population N        Population size (default: 100)
+  --evo-elite FRAC          Elite fraction (default: 0.2)
+  --evo-mutation RATE       Mutation rate (default: 0.1)
+  --evo-mutation-mode MODE  Mutation strategy: sexual|asexual|both (default: sexual)
 ```
 
 ### Benchmark Suite Mode
 
-Runs an Evolutionary Search Agent on **every pattern** in `target_patterns.json` with a 5-second test-time compute limit for each pattern/game. See [video](https://vimeo.com/1136735348).
+Runs an Evolutionary Search Agent on **every pattern** in `target_patterns.json` with a configurable test-time compute limit for each pattern/game. See [video](https://vimeo.com/1136735348).
 
 **Basic usage:**
 ```bash
@@ -271,12 +284,36 @@ python main.py benchmark-suite
 ```bash
 python main.py benchmark-suite --time-limit 4.0 \
   --evo-generations 100 --evo-population 200 \
-  --evo-elite 0.3 --evo-mutation 0.15
+  --evo-elite 0.3 --evo-mutation 0.15 \
+  --evo-mutation-mode asexual
+```
+
+**Compare mutation strategies:**
+```bash
+# Sexual reproduction (default)
+python main.py benchmark-suite --evo-mutation-mode sexual
+
+# Asexual reproduction 
+python main.py benchmark-suite --evo-mutation-mode asexual
+
+# Hybrid approach
+python main.py benchmark-suite --evo-mutation-mode both
 ```
 
 **With visual rendering:**
 ```bash
-python main.py benchmark-suite --time-limit 5.0 --render
+python main.py benchmark-suite --render
+```
+
+**Options:**
+```bash
+  --time-limit SECONDS          Per-episode time limit (default: 7.0)
+  --render                      Enable visualization
+  --evo-generations N           Generations per episode (default: 50)
+  --evo-population N            Population size (default: 100)
+  --evo-elite FRAC              Elite fraction (default: 0.2)
+  --evo-mutation RATE           Mutation rate (default: 0.1)
+  --evo-mutation-mode MODE      Mutation strategy: sexual|asexual|both (default: sexual)
 ```
 
 **Output Files**
@@ -286,7 +323,7 @@ Creates two files with timestamps:
 1. **JSON file** (`benchmark_evolutionary_TIMESTAMP.json`):
    - Complete results for each pattern
    - Summary statistics
-   - All parameters used
+   - All parameters used (including mutation mode)
    - Machine-readable for analysis
 
 2. **Summary file** (`benchmark_evolutionary_TIMESTAMP_summary.txt`):
@@ -301,6 +338,9 @@ Creates two files with timestamps:
 - Time statistics (mean, std, total)
 - Per-pattern details
 
+## 📜 License
+
+This project is licensed under the MIT License.
 
 ## Citation
 
@@ -315,7 +355,3 @@ If you use this environment in your research, please cite:
   url = {https://github.com/Digital-Physics/game-of-life-pattern-RL-gym}
 }
 ```
-
-## 📜 License
-
-This project is licensed under the MIT License.
