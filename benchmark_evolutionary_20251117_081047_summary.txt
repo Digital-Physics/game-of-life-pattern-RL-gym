@@ -1,7 +1,7 @@
 EVOLUTIONARY AGENT BENCHMARK SUMMARY
 ======================================================================
 
-Date: 2025-11-16T12:51:06.799249
+Date: 2025-11-17T07:42:48.611534
 Patterns Tested: 752
 Time Limit: 7.0s per pattern
 
@@ -14,18 +14,18 @@ Evolutionary Algorithm Parameters:
 
 RESULTS:
 ----------------------------------------------------------------------
-Perfect Matches: 447/752 (59.4%)
+Perfect Matches: 454/752 (60.4%)
 Timeouts:        0/752 (0.0%)
 
 Reward Statistics:
-  Average: 0.9964 ± 0.0049
+  Average: 0.9964 ± 0.0050
   Median:  1.0000
-  Min:     0.9792
+  Min:     0.9722
   Max:     1.0000
 
 Time Statistics:
-  Average per pattern: 2.44s ± 1.84s
-  Total time:          1837.3s (30.6 minutes)
+  Average per pattern: 2.23s ± 1.65s
+  Total time:          1678.3s (28.0 minutes)
 
 ======================================================================
 To reproduce this benchmark:

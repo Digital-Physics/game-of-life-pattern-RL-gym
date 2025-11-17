@@ -321,37 +321,13 @@ python main.py benchmark-suite --render
 Creates two files with timestamps:
 
 1. **JSON file** (`benchmark_evolutionary_TIMESTAMP.json`):
-   - Complete results for each pattern
-   - Summary statistics
-   - All parameters used (including mutation mode)
-   - Machine-readable for analysis
+   - Detailed Results that are machine-readable for analysis
 
 2. **Summary file** (`benchmark_evolutionary_TIMESTAMP_summary.txt`):
    - Human-readable overview
    - Key statistics (perfect matches, timeouts, avg reward, etc.)
    - Command to reproduce the benchmark
 
-**Statistics Tracked**
-- Perfect match rate 
-- Timeout rate 
-- Reward statistics (mean, std, median, min, max)
-- Time statistics (mean, std, total)
-- Per-pattern details
-
 ## 📜 License
 
 This project is licensed under the MIT License.
-
-## Citation
-
-If you use this environment in your research, please cite:
-
-```bibtex
-@misc{gol_pattern_matching_env,
-  author = {Khanlian, Jon},
-  title = {Conway's Game of Life Pattern Matching RL Environment},
-  year = {2025},
-  publisher = {GitHub},
-  url = {https://github.com/Digital-Physics/game-of-life-pattern-RL-gym}
-}
-```

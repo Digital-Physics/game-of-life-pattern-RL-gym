@@ -741,7 +741,8 @@ def run_benchmark_suite(args):
             'accuracy': float(accuracy),
             'time_seconds': float(episode_time),
             'timeout': bool(timed_out),
-            'steps_taken': step_count
+            'steps_taken': step_count,
+            'best_action_sequence': agent.current_sequence.tolist() if agent.current_sequence is not None else []  
         }
         results['pattern_results'].append(pattern_result)
     
